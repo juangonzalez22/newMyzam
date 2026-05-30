@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyZam Web</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #121212; color: white; padding-top: 50px; }
+        .shazam-btn { background: #0088ff; border: none; border-radius: 50%; width: 150px; height: 150px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px #0088ff; transition: 0.3s; }
+        .shazam-btn:disabled { background: #555; box-shadow: none; }
+        .listening { background: #ff3333; box-shadow: 0 0 30px #ff3333; animation: pulse 1.5s infinite; }
+        #status { margin-top: 30px; font-size: 20px; }
+        #result { margin-top: 20px; font-size: 24px; color: #00ff88; font-weight: bold; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <h1>MyZam</h1>
+    <p>Clon web de Shazam para Linkin Park</p>
+    
+    <button id="recordBtn" class="shazam-btn">ESCUCHAR</button>
+    
+    <div id="status">Presiona el botón para identificar</div>
+    <div id="result"></div>
+
+    <script>
+        const recordBtn = document.getElementById('recordBtn');
+        const statusDiv = document.getElementById('status');
+        const resultDiv = document.getElementById('result');
+
+        recordBtn.addEventListener('click', async () => {
+            resultDiv.innerText = "";
+            
+            // Solicitar permisos de micrófono al navegador del móvil
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                const audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                
+                mediaRecorder.onstop = async () => {
+                    statusDiv.innerText = "Procesando huella acústica...";
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    
+                    // Preparar el envío del archivo a Flask
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'query.wav');
+
+                    // Enviar al backend
+                    const response = await fetch('/recognize', { method: 'POST', body: formData });
+                    const data = await response.json();
+
+                    if (data.error) {
+                        statusDiv.innerText = "Error";
+                        resultDiv.innerHTML = `<span style="color:red;">${data.error}</span>`;
+                    } else if (data.match) {
+                        statusDiv.innerText = "¡Canción Encontrada!";
+                        resultDiv.innerHTML = `🎵 ${data.song}<br><small style="font-size:14px; color:#aaa;">Score: ${data.score} | Offset: ${data.offset}s</small>`;
+                    } else {
+                        statusDiv.innerText = "Resultado:";
+                        resultDiv.innerHTML = `<span style="color:#ffcc00;">❌ ${data.message}</span>`;
+                    }
+                    
+                    recordBtn.disabled = false;
+                    recordBtn.classList.remove('listening');
+                    // Apagar el micrófono
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                // Iniciar grabación (Captura 5 segundos para que sea rápido)
+                mediaRecorder.start();
+                recordBtn.disabled = true;
+                recordBtn.classList.add('listening');
+                
+                let seconds = 5;
+                statusDiv.innerText = `🎙️ Escuchando... (${seconds}s)`;
+                
+                const countdown = setInterval(() => {
+                    seconds--;
+                    if (seconds > 0) {
+                        statusDiv.innerText = `🎙️ Escuchando... (${seconds}s)`;
+                    } else {
+                        clearInterval(countdown);
+                    }
+                }, 1000);
+
+                setTimeout(() => { mediaRecorder.stop(); }, 5000);
+
+            } catch (err) {
+                alert("No se pudo acceder al micrófono: " + err);
+            }
+        });
+    </script>
+</body>
+</html>
