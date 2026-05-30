@@ -45,8 +45,8 @@
             font-weight: 800;
             letter-spacing: -1px;
             background: linear-gradient(135deg, #fff 0%, #a5c7f7 100%);
-            -webkit-background-clip: text; /* Para compatibilidad con Safari/Chrome viejo */
-            background-clip: text;         /* El estándar que te pide el editor */
+            -webkit-background-clip: text;
+            background-clip: text;         
             -webkit-text-fill-color: transparent;
             margin-bottom: 8px;
         }
@@ -249,28 +249,51 @@
             setTimeout(() => { if(!resultCard.classList.contains('show')) resultCard.style.display = 'none'; }, 500);
             
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const mediaRecorder = new MediaRecorder(stream);
+                // CONFIGURACIÓN DE ALTA FIDELIDAD: Desactivamos los filtros de voz de Android
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        channelCount: 1,
+                        sampleRate: 44100
+                    } 
+                });
+
+                // Seleccionar un formato compatible con contenedores móviles
+                let options = { mimeType: 'audio/webm;codecs=opus' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'audio/ogg;codecs=opus' };
+                }
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = {}; // Formato por defecto del sistema
+                }
+
+                const mediaRecorder = new MediaRecorder(stream, options);
                 const audioChunks = [];
 
-                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data && event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
                 
                 mediaRecorder.onstop = async () => {
                     statusDiv.classList.remove('listening-status');
                     statusDiv.innerText = "Buscando huella acústica...";
                     btnText.innerText = "ESPERA";
                     
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    // Asignamos el mimeType real detectado por el dispositivo
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
                     const formData = new FormData();
-                    formData.append('audio', audioBlob, 'query.wav');
+                    formData.append('audio', audioBlob, 'query.webm');
 
                     try {
                         const response = await fetch('/recognize', { method: 'POST', body: formData });
                         const data = await response.json();
 
                         resultCard.style.display = 'block';
-                        // Forzar reflow para animación
-                        resultCard.offsetHeight; 
+                        resultCard.offsetHeight; // Forzar reflow para animación
                         resultCard.classList.add('show');
 
                         if (data.error) {
@@ -303,7 +326,7 @@
 
                 // Iniciar la captura de audio
                 mediaRecorder.start();
-                recordBtn.disabled = false; // Lo mantenemos habilitado para la UI, pero el estado cambia
+                recordBtn.disabled = false;
                 interactionZone.classList.add('listening');
                 btnText.innerText = "OYENDO";
                 statusDiv.classList.add('listening-status');
@@ -320,7 +343,11 @@
                     }
                 }, 1000);
 
-                setTimeout(() => { mediaRecorder.stop(); }, 5000);
+                setTimeout(() => { 
+                    if (mediaRecorder.state === "recording") {
+                        mediaRecorder.stop(); 
+                    }
+                }, 5000);
 
             } catch (err) {
                 alert("Por favor, permite el acceso al micrófono para identificar música.");
