@@ -3,36 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyZam Web</title>
+    <title>MyZam - Identificador de Música</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #121212; color: white; padding-top: 50px; }
-        .shazam-btn { background: #0088ff; border: none; border-radius: 50%; width: 150px; height: 150px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px #0088ff; transition: 0.3s; }
-        .shazam-btn:disabled { background: #555; box-shadow: none; }
-        .listening { background: #ff3333; box-shadow: 0 0 30px #ff3333; animation: pulse 1.5s infinite; }
-        #status { margin-top: 30px; font-size: 20px; }
-        #result { margin-top: 20px; font-size: 24px; color: #00ff88; font-weight: bold; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        :root {
+            --primary: #0076ff;
+            --primary-glow: rgba(0, 118, 255, 0.3);
+            --bg: #0b0f19;
+            --card-bg: #161f32;
+            --text: #ffffff;
+            --text-secondary: #8a99ad;
+            --success: #00e676;
+            --error: #ff5252;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: radial-gradient(circle at center, #1a233a 0%, var(--bg) 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 40px 20px;
+            overflow: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #fff 0%, #a5c7f7 100%);
+            -webkit-background-clip: text; /* Para compatibilidad con Safari/Chrome viejo */
+            background-clip: text;         /* El estándar que te pide el editor */
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 400;
+        }
+
+        /* Contenedor central del botón y ondas */
+        .main-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 300px;
+        }
+
+        .pulse-ring {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 30px var(--primary);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .listening .pulse-ring {
+            animation: ripple 1.5s infinite ease-out;
+        }
+
+        .listening .pulse-ring:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+
+        .shazam-btn {
+            position: relative;
+            z-index: 5;
+            background: linear-gradient(135deg, #2f80ed 0%, var(--primary) 100%);
+            border: none;
+            border-radius: 50%;
+            width: 150px;
+            height: 150px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 118, 255, 0.4), inset 0 2px 4px rgba(255,255,255,0.2);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .shazam-btn:active {
+            transform: scale(0.95);
+        }
+
+        .shazam-btn:disabled {
+            background: #252d3a;
+            box-shadow: none;
+            cursor: not-allowed;
+            color: var(--text-secondary);
+        }
+
+        .shazam-btn svg {
+            width: 36px;
+            height: 36px;
+            fill: currentColor;
+            transition: transform 0.3s ease;
+        }
+
+        .listening .shazam-btn {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            box-shadow: 0 10px 30px rgba(255, 75, 43, 0.4);
+        }
+
+        .listening .shazam-btn svg {
+            transform: scale(1.1);
+        }
+
+        /* Sección de Estados y Resultados */
+        .info-container {
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        #status {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 15px;
+            transition: color 0.3s ease;
+        }
+
+        .listening-status {
+            color: #ff5252 !important;
+            font-weight: 600;
+        }
+
+        #result-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.05);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            display: none;
+        }
+
+        #result-card.show {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+
+        .song-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .match-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 10px;
+        }
+
+        /* Animaciones */
+        @keyframes ripple {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+
+        footer {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.2);
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
 
-    <h1>MyZam</h1>
-    <p>Clon web de Shazam para Linkin Park</p>
-    
-    <button id="recordBtn" class="shazam-btn">ESCUCHAR</button>
-    
-    <div id="status">Presiona el botón para identificar</div>
-    <div id="result"></div>
+    <header>
+        <h1>MyZam</h1>
+        <p>Mini clon de Shazam</p>
+    </header>
+
+    <div class="main-container" id="interactionZone">
+        <div class="pulse-ring"></div>
+        <div class="pulse-ring"></div>
+        <button id="recordBtn" class="shazam-btn">
+            <svg viewBox="0 0 24 24">
+                <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" />
+            </svg>
+            <span id="btnText">TOCO</span>
+        </button>
+    </div>
+
+    <div class="info-container">
+        <div id="status">Presiona para identificar música</div>
+        
+        <div id="result-card">
+            <div id="result-content"></div>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 MyZam Engine
+    </footer>
 
     <script>
         const recordBtn = document.getElementById('recordBtn');
+        const interactionZone = document.getElementById('interactionZone');
         const statusDiv = document.getElementById('status');
-        const resultDiv = document.getElementById('result');
+        const resultCard = document.getElementById('result-card');
+        const resultContent = document.getElementById('result-content');
+        const btnText = document.getElementById('btnText');
 
         recordBtn.addEventListener('click', async () => {
-            resultDiv.innerText = "";
+            // Ocultar resultados previos de forma fluida
+            resultCard.classList.remove('show');
+            setTimeout(() => { if(!resultCard.classList.contains('show')) resultCard.style.display = 'none'; }, 500);
             
-            // Solicitar permisos de micrófono al navegador del móvil
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const mediaRecorder = new MediaRecorder(stream);
@@ -41,46 +256,65 @@
                 mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
                 
                 mediaRecorder.onstop = async () => {
-                    statusDiv.innerText = "Procesando huella acústica...";
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    statusDiv.classList.remove('listening-status');
+                    statusDiv.innerText = "Buscando huella acústica...";
+                    btnText.innerText = "ESPERA";
                     
-                    // Preparar el envío del archivo a Flask
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                     const formData = new FormData();
                     formData.append('audio', audioBlob, 'query.wav');
 
-                    // Enviar al backend
-                    const response = await fetch('/recognize', { method: 'POST', body: formData });
-                    const data = await response.json();
+                    try {
+                        const response = await fetch('/recognize', { method: 'POST', body: formData });
+                        const data = await response.json();
 
-                    if (data.error) {
-                        statusDiv.innerText = "Error";
-                        resultDiv.innerHTML = `<span style="color:red;">${data.error}</span>`;
-                    } else if (data.match) {
-                        statusDiv.innerText = "¡Canción Encontrada!";
-                        resultDiv.innerHTML = `🎵 ${data.song}<br><small style="font-size:14px; color:#aaa;">Score: ${data.score} | Offset: ${data.offset}s</small>`;
-                    } else {
-                        statusDiv.innerText = "Resultado:";
-                        resultDiv.innerHTML = `<span style="color:#ffcc00;">❌ ${data.message}</span>`;
+                        resultCard.style.display = 'block';
+                        // Forzar reflow para animación
+                        resultCard.offsetHeight; 
+                        resultCard.classList.add('show');
+
+                        if (data.error) {
+                            statusDiv.innerText = "Error de procesamiento";
+                            resultContent.innerHTML = `<div class="song-title" style="color:var(--error);">Ocurrió un error</div><p style="font-size:0.9rem; color:var(--text-secondary);">${data.error}</p>`;
+                        } else if (data.match) {
+                            statusDiv.innerText = "¡Coincidencia encontrada!";
+                            resultContent.innerHTML = `
+                                <div class="song-title">🎵 ${data.song}</div>
+                                <div class="match-meta">
+                                    <span>🔥 Precisión: ${data.score}</span>
+                                    <span>⏳ Tiempo: ${data.offset}s</span>
+                                </div>`;
+                        } else {
+                            statusDiv.innerText = "Búsqueda terminada";
+                            resultContent.innerHTML = `<div class="song-title" style="color:#ffcc00;">No hubo Match</div><p style="font-size:0.9rem; color:var(--text-secondary);">${data.message}</p>`;
+                        }
+                    } catch (fetchErr) {
+                        statusDiv.innerText = "Error de conexión";
+                        resultCard.style.display = 'block';
+                        resultCard.classList.add('show');
+                        resultContent.innerHTML = `<div class="song-title" style="color:var(--error);">Servidor desconectado</div>`;
                     }
                     
                     recordBtn.disabled = false;
-                    recordBtn.classList.remove('listening');
-                    // Apagar el micrófono
+                    interactionZone.classList.remove('listening');
+                    btnText.innerText = "TOCO";
                     stream.getTracks().forEach(track => track.stop());
                 };
 
-                // Iniciar grabación (Captura 5 segundos para que sea rápido)
+                // Iniciar la captura de audio
                 mediaRecorder.start();
-                recordBtn.disabled = true;
-                recordBtn.classList.add('listening');
+                recordBtn.disabled = false; // Lo mantenemos habilitado para la UI, pero el estado cambia
+                interactionZone.classList.add('listening');
+                btnText.innerText = "OYENDO";
+                statusDiv.classList.add('listening-status');
                 
                 let seconds = 5;
-                statusDiv.innerText = `🎙️ Escuchando... (${seconds}s)`;
+                statusDiv.innerText = `Escuchando el ambiente... (${seconds}s)`;
                 
                 const countdown = setInterval(() => {
                     seconds--;
                     if (seconds > 0) {
-                        statusDiv.innerText = `🎙️ Escuchando... (${seconds}s)`;
+                        statusDiv.innerText = `Escuchando el ambiente... (${seconds}s)`;
                     } else {
                         clearInterval(countdown);
                     }
@@ -89,7 +323,7 @@
                 setTimeout(() => { mediaRecorder.stop(); }, 5000);
 
             } catch (err) {
-                alert("No se pudo acceder al micrófono: " + err);
+                alert("Por favor, permite el acceso al micrófono para identificar música.");
             }
         });
     </script>
